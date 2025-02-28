@@ -24,7 +24,7 @@ void subtractVectors(double *vector1, double *vector2, double *resVector) {
     }
 }
 
-void multiplyMatrixAndVector(double *A_local, int myLocalN, double *x, double *resVector, MPI_Comm comm) {
+void multiplyMatrixAndVector(double *A_local, int myLocalN, double *x, double *resVector, int *counts, int *displs, MPI_Comm comm) {
     double *Ax_local = (double*)malloc(myLocalN * sizeof(double));
     for (int i = 0; i < myLocalN; ++i) {
         double sum = 0.0;
@@ -33,7 +33,7 @@ void multiplyMatrixAndVector(double *A_local, int myLocalN, double *x, double *r
         }
         Ax_local[i] = sum;
     }
-    MPI_Allgather(Ax_local, myLocalN, MPI_DOUBLE, resVector, myLocalN, MPI_DOUBLE, comm);
+    MPI_Allgatherv(Ax_local, myLocalN, MPI_DOUBLE, resVector, counts, displs, MPI_DOUBLE, comm);
     free(Ax_local);
 }
 
@@ -54,13 +54,16 @@ int main(int argc, char* argv[])
     int numberOfProcesses, rank;
     MPI_Comm_size(comm, &numberOfProcesses);
     MPI_Comm_rank(comm, &rank);
+    
     int base = N / numberOfProcesses;
     int remainder = N % numberOfProcesses;
     int myLocalN = (rank < remainder) ? (base + 1) : base;
+    
     int startRowGlobalIndex = 0;
     for (int r = 0; r < rank; r++) {
         startRowGlobalIndex += (r < remainder) ? (base + 1) : base;
     }
+    
     double *A_local = (double*)malloc(myLocalN * N * sizeof(double));
     double *x = (double*)malloc(N * sizeof(double));
     double *b = (double*)malloc(N * sizeof(double));
@@ -69,10 +72,12 @@ int main(int argc, char* argv[])
     const double epsilon = 1e-5;
     const double tao = 1e-3;
     double *u = (double*)malloc(N * sizeof(double));
+    
     for (int i = 0; i < N; ++i) {
         u[i] = sin(2 * PI * i / N);
         x[i] = 0.0;
     }
+    
     for (int i = 0; i < myLocalN; ++i) {
         int globalRow = startRowGlobalIndex + i;
         for (int j = 0; j < N; ++j) {
@@ -82,10 +87,22 @@ int main(int argc, char* argv[])
                 A_local[i * N + j] = 1.0;
         }
     }
-    multiplyMatrixAndVector(A_local, myLocalN, u, b, comm);
+    
+    int *counts = (int*)malloc(numberOfProcesses * sizeof(int));
+    int *displs = (int*)malloc(numberOfProcesses * sizeof(int));
+    int prefix = 0;
+    for (int r = 0; r < numberOfProcesses; r++) {
+        int localN_r = (r < remainder) ? (base + 1) : base;
+        counts[r] = localN_r;
+        displs[r] = prefix;
+        prefix += localN_r;
+    }
+    
+    multiplyMatrixAndVector(A_local, myLocalN, u, b, counts, displs, comm);
     double t_start = MPI_Wtime();
+    
     while (1) {
-        multiplyMatrixAndVector(A_local, myLocalN, x, Ax, comm);
+        multiplyMatrixAndVector(A_local, myLocalN, x, Ax, counts, displs, comm);
         subtractVectors(Ax, b, tempVector);
         double normTemp = calculateNorm(tempVector, myLocalN, comm);
         double normB = calculateNorm(b, myLocalN, comm);
@@ -93,6 +110,7 @@ int main(int argc, char* argv[])
         multiplyScalarAndVector(tempVector, tao, tempVector);
         subtractVectors(x, tempVector, x);
     }
+    
     double t_end = MPI_Wtime();
     if (rank == 0) {
         printf("%lf sec passed.\n", t_end - t_start);
@@ -103,12 +121,16 @@ int main(int argc, char* argv[])
         }
         printf("max difference: %lf\n", maxDifference);
     }
+    
     free(A_local);
     free(x);
     free(b);
     free(Ax);
     free(tempVector);
     free(u);
+    free(counts);
+    free(displs);
+    
     MPI_Finalize();
     return 0;
 }
