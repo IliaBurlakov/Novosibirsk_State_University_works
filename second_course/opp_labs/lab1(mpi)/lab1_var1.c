@@ -37,20 +37,19 @@ void multiplyMatrixAndVector(double *A_local, int myLocalN, double *x, double *r
     free(Ax_local);
 }
 
-double calculateNorm(double *vector, int myLocalN, MPI_Comm comm) {
-    double localSum = 0.0;
-    for (int i = 0; i < myLocalN; ++i) {
-        localSum += vector[i] * vector[i];
+double calculateNorm(double *vector) {
+    double sum = 0.0;
+    for (int i = 0; i < N; i++) {
+        sum += vector[i] * vector[i];
     }
-    double globalSum = 0.0;
-    MPI_Allreduce(&localSum, &globalSum, 1, MPI_DOUBLE, MPI_SUM, comm);
-    return sqrt(globalSum);
+    return sqrt(sum);
 }
+
 
 int main(int argc, char* argv[])
 {
     MPI_Init(&argc, &argv);
-    MPI_Comm comm = MPI_COMM_WORLD;
+    MPI_Comm comm = MPI_COMM_WORLD; //communicator
     int numberOfProcesses, rank;
     MPI_Comm_size(comm, &numberOfProcesses);
     MPI_Comm_rank(comm, &rank);
@@ -91,21 +90,33 @@ int main(int argc, char* argv[])
     int *counts = (int*)malloc(numberOfProcesses * sizeof(int));
     int *displs = (int*)malloc(numberOfProcesses * sizeof(int));
     int prefix = 0;
-    for (int r = 0; r < numberOfProcesses; r++) {
-        int localN_r = (r < remainder) ? (base + 1) : base;
-        counts[r] = localN_r;
-        displs[r] = prefix;
-        prefix += localN_r;
+    for (int i = 0; i < numberOfProcesses; i++) {
+        int localN_i = (i < remainder) ? (base + 1) : base;
+        counts[i] = localN_i;
+        displs[i] = prefix;
+        prefix += localN_i;
     }
     
-    multiplyMatrixAndVector(A_local, myLocalN, u, b, counts, displs, comm);
+    multiplyMatrixAndVector(A_local, myLocalN, u, b, counts, displs, comm); //A * u = b
     double t_start = MPI_Wtime();
     
     while (1) {
         multiplyMatrixAndVector(A_local, myLocalN, x, Ax, counts, displs, comm);
         subtractVectors(Ax, b, tempVector);
-        double normTemp = calculateNorm(tempVector, myLocalN, comm);
-        double normB = calculateNorm(b, myLocalN, comm);
+        
+        double normTemp = 0.0;
+        double normB = 0.0;
+        if (rank == 0){
+            normTemp = calculateNorm(tempVector);
+            normB = calculateNorm(b); 
+            MPI_Bcast(&normTemp, 1, MPI_DOUBLE, 0, comm);
+            MPI_Bcast(&normB, 1, MPI_DOUBLE, 0, comm);
+        }
+        else{
+            MPI_Bcast(&normTemp, 1, MPI_DOUBLE, 0, comm);
+            MPI_Bcast(&normB, 1, MPI_DOUBLE, 0, comm);
+        }
+
         if (normTemp / normB < epsilon) break;
         multiplyScalarAndVector(tempVector, tao, tempVector);
         subtractVectors(x, tempVector, x);
