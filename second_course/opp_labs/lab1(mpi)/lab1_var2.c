@@ -7,42 +7,42 @@
 #define PI 3.14159265358979323846
 #define N 1600
 
-void multiplyMatrixAndVector(double *A_local, int myLocalN, double *x_local, double *Ax_local, int *counts, int *displs, int numberOfProcesses, int rank, MPI_Comm comm) {
-    for (int i = 0; i < myLocalN; i++) {
-        Ax_local[i] = 0.0;
-    }
-    int maxLocalN = ((N % numberOfProcesses) == 0) ? (N / numberOfProcesses) :  (N /numberOfProcesses + 1);
-    double *sendBuf = (double*)malloc(maxLocalN * sizeof(double));
-    double *recvBuf = (double*)malloc(maxLocalN * sizeof(double));
-    int currentSize = counts[rank];
-    memcpy(sendBuf, x_local, currentSize * sizeof(double));
-    int currentOwner = rank;
-    for (int step = 0; step < numberOfProcesses; step++) {
-        int blockSize = counts[currentOwner];
-        int blockDisp = displs[currentOwner];
+    void multiplyMatrixAndVector(double *A_local, int myLocalN, double *x_local, double *Ax_local, int *counts, int *displs, int numberOfProcesses, int rank, MPI_Comm comm) {
         for (int i = 0; i < myLocalN; i++) {
-            double part = 0.0;
-            for (int k = 0; k < blockSize; k++) {
-                int globalIndex = blockDisp + k;
-                part += A_local[i*N + globalIndex] * sendBuf[k];
-            }
-            Ax_local[i] += part;
+            Ax_local[i] = 0.0;
         }
-        int leftNeighbour = (rank - 1 + numberOfProcesses) % numberOfProcesses;
-        int rightNeighbour = (rank + 1) % numberOfProcesses;
-        int sendCurSizeAndCurOwner[2] = { currentSize, currentOwner };
-        int recvPrevSizeAndPrevOwner[2];
-        MPI_Sendrecv(sendCurSizeAndCurOwner, 2, MPI_INT, rightNeighbour, 0, recvPrevSizeAndPrevOwner, 2, MPI_INT, leftNeighbour, 0, comm, MPI_STATUS_IGNORE); // ( void *sendbuf, int sendcount, MPI_Datatype sendtype, int dest, int sendtag, void *recvbuf, int recvcount, MPI_Datatype recvtype, int source, int recvtag, MPI_Comm comm, MPI_Status *status )
-        int nextSize = recvPrevSizeAndPrevOwner[0];
-        int nextOwner = recvPrevSizeAndPrevOwner[1];
-        MPI_Sendrecv(sendBuf, currentSize, MPI_DOUBLE, rightNeighbour, 1, recvBuf, nextSize, MPI_DOUBLE, leftNeighbour, 1, comm, MPI_STATUS_IGNORE);
-        currentSize = nextSize;
-        currentOwner = nextOwner;
-        memcpy(sendBuf, recvBuf, currentSize * sizeof(double));
+        int maxLocalN = ((N % numberOfProcesses) == 0) ? (N / numberOfProcesses) :  (N /numberOfProcesses + 1);
+        double *sendBuf = (double*)malloc(maxLocalN * sizeof(double));
+        double *recvBuf = (double*)malloc(maxLocalN * sizeof(double));
+        int currentSize = counts[rank];
+        memcpy(sendBuf, x_local, currentSize * sizeof(double));
+        int currentOwner = rank;
+        for (int step = 0; step < numberOfProcesses; step++) {
+            int blockSize = counts[currentOwner];
+            int blockDisp = displs[currentOwner];
+            for (int i = 0; i < myLocalN; i++) {
+                double part = 0.0;
+                for (int k = 0; k < blockSize; k++) {
+                    int globalIndex = blockDisp + k;
+                    part += A_local[i*N + globalIndex] * sendBuf[k];
+                }
+                Ax_local[i] += part;
+            }
+            int leftNeighbour = (rank - 1 + numberOfProcesses) % numberOfProcesses;
+            int rightNeighbour = (rank + 1) % numberOfProcesses;
+            int sendCurSizeAndCurOwner[2] = { currentSize, currentOwner };
+            int recvPrevSizeAndPrevOwner[2];
+            MPI_Sendrecv(sendCurSizeAndCurOwner, 2, MPI_INT, rightNeighbour, 0, recvPrevSizeAndPrevOwner, 2, MPI_INT, leftNeighbour, 0, comm, MPI_STATUS_IGNORE); // ( void *sendbuf, int sendcount, MPI_Datatype sendtype, int dest, int sendtag, void *recvbuf, int recvcount, MPI_Datatype recvtype, int source, int recvtag, MPI_Comm comm, MPI_Status *status )
+            int nextSize = recvPrevSizeAndPrevOwner[0];
+            int nextOwner = recvPrevSizeAndPrevOwner[1];
+            MPI_Sendrecv(sendBuf, currentSize, MPI_DOUBLE, rightNeighbour, 1, recvBuf, nextSize, MPI_DOUBLE, leftNeighbour, 1, comm, MPI_STATUS_IGNORE);
+            currentSize = nextSize;
+            currentOwner = nextOwner;
+            memcpy(sendBuf, recvBuf, currentSize * sizeof(double));
+        }
+        free(sendBuf);
+        free(recvBuf);
     }
-    free(sendBuf);
-    free(recvBuf);
-}
 
 double calculateNorm(double *v_local, int myLocalN, MPI_Comm comm) {
     double localSum = 0.0;
@@ -80,8 +80,8 @@ int main(int argc, char* argv[])
     int prefix = 0;
     for (int i = 0; i < numberOfProcesses; i++) {
         int localN_i = (i < remainder) ? (base + 1) : base;
-        counts[i] = localN_r;
-        displs[i] = prefix;
+        counts[i] = localN_i;
+        displs[i] = prefix; 
         prefix += counts[i];
     }
 
@@ -107,7 +107,7 @@ int main(int argc, char* argv[])
         }
         b_local[i] = sum;
     }
-    const double epsilon = 1e-5;
+    const double epsilon = 1e-2;
     const double tao = 1e-3;
     double t_start = MPI_Wtime();
     while (1) {
