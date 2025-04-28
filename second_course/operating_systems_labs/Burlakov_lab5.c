@@ -6,7 +6,7 @@
 #define ERROR -1
 #define SUCCESS 0
 #define ERROR_MESSAGE_LENGHT 128
-#define FORK_RETURN_VAL_FOR_CHILD 0
+#define FORK_RET_VAL_FOR_CHILD 0
 
 int global_var = 11;
 
@@ -71,7 +71,7 @@ int main() {
         perror(errorMessage);
         return ERROR;
     }
-    if (pidFromFork == FORK_RETURN_VAL_FOR_CHILD) {
+    if (pidFromFork == FORK_RET_VAL_FOR_CHILD) {
         childProcessTask(&local_var);
         return SUCCESS;
     }
