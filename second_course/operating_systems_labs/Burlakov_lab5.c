@@ -7,6 +7,7 @@
 #define SUCCESS 0
 #define ERROR_MESSAGE_LENGHT 128
 #define FORK_RETURN_VAL_FOR_CHILD 0
+
 int global_var = 11;
 
 void childProcessTask(int *local_var) {
