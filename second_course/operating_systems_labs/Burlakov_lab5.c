@@ -19,24 +19,40 @@ void childProcessTask(int *local_var) {
 
     global_var = 33;
     *local_var = 44;
+
     printf("Updated global variable value in child process: %d\n", global_var);
     printf("Updated local variable value in child process: %d\n", *local_var);
-    exit(5);
+    int fflushReturnValue = fflush(stdout);
+    if (fflushReturnValue == EOF){
+        perror("fflush() in childProcessTask");
+        _exit(ERROR);
+    }
+    int exitStatus = 5;
+    _exit(exitStatus);
 }
 
-void parentProcessTask(int *local_var_value) {
+int parentProcessTask(int *local_var_value) {
     sleep(30);
     int status;
-    wait(&status);
-
+    pid_t waitReturnValue = wait(&status);
+    if (waitReturnValue == ERROR) {
+        perror("Wait in parentProcessTask");
+        return ERROR;
+    }
     printf("Global variable value in parent process: %d\n", global_var);
     printf("Local variable value in parent process: %d\n", *local_var_value);
 
-    if (WIFSIGNALED(status))
-        printf("Child process terminated by signal: %d\n", WTERMSIG(status));
-
-    if (WIFEXITED(status))
-        printf("Child process exited normally with code: %d\n", WEXITSTATUS(status));
+    int terminatedWithSignal = WIFSIGNALED(status);
+    int terminatedWithExit = WIFEXITED(status);
+    if (terminatedWithSignal) {
+        int signal = WTERMSIG(status);
+        printf("Child process terminated by signal: %d\n", signal);
+    }
+    if (terminatedWithExit) {
+        int exitStatus = WEXITSTATUS(status);
+        printf("Child process terminated normally with exit code: %d\n", exitStatus);
+    }
+    return SUCCESS;
 }
 
 int main() {
@@ -54,12 +70,13 @@ int main() {
         perror(errorMessage);
         return ERROR;
     }
-
-    if (pidFromFork == 0) 
+    int forkReturnValueForChild = 0;
+    if (pidFromFork == forkReturnValueForChild) {
         childProcessTask(&local_var);
-
-    if (pidFromFork > 0)
-        parentProcessTask(&local_var);
-
-    return SUCCESS;
+        return SUCCESS;
+    }
+    
+    int parentProcessReturnValue;
+    parentProcessReturnValue = parentProcessTask(&local_var);
+    return parentProcessReturnValue;
 }
