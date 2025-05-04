@@ -29,6 +29,7 @@ void childProcessTask(int *local_var) {
         _exit(ERROR);
     }
     int exitStatus = 5;
+    sleep(15);
     _exit(exitStatus);
 }
 
