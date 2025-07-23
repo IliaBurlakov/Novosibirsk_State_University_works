@@ -1,0 +1,6 @@
+hard:user1:560
+hard:user2:760
+medium:Ilia:320
+easy:user2:23
+easy:Ilia:27
+easy:user1:45
