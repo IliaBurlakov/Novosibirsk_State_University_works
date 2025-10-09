@@ -22,7 +22,8 @@ void *mythread()
 
     *valueToReturn = 42;
     printf("Value to return from mythread: %d\n", *valueToReturn);
-    return (void *)valueToReturn;
+    // return (void *)valueToReturn;
+    return (void *)42;
 }
 
 int main()
@@ -47,8 +48,8 @@ int main()
         return ERROR;
     }
 
-    printf("Received value in main: %d\n", *thread_result);
+    printf("Received value in main: %ld\n", (long)thread_result);
 
-    free(thread_result);
+    // free(thread_result);
     return SUCCESS;
 }

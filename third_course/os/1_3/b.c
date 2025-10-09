@@ -10,6 +10,7 @@
 #define SUCCESS 0
 #define ERROR 1
 #define SLEEP_TIME 1
+#define SIZEOF_NULL_TERMINATOR 1
 
 struct mydata
 {
@@ -20,8 +21,8 @@ struct mydata
 void *mythread(void *arg)
 {
     struct mydata *data = (struct mydata *)arg;
-
     printf("mythread [tid: %d]: number = %d, message = %s\n", gettid(), data->number, data->message);
+    free(data->message);
     free(data);
     return NULL;
 }
@@ -58,23 +59,35 @@ int main()
         return ERROR;
     }
     data->number = 123;
-    data->message = "hello world detached";
+    char *msg = "hello world detached";
+    data->message = malloc(strlen(msg) + SIZEOF_NULL_TERMINATOR);
+    if (data->message == NULL)
+    {
+        printf("main: malloc() failed\n");
+        free(data);
+        return ERROR;
+    }
+    strcpy(data->message, msg);
     int init_attr_return_val = init_detached_attr(&attr);
     if (init_attr_return_val == ERROR)
     {
+        free(data->message);
         free(data);
         return ERROR;
     }
     err = pthread_create(&tid, &attr, mythread, data);
     if (err != SUCCESS)
     {
-        fprintf(stderr, "pthread_create() failed: %s\n", strerror(err));
+        fprintf(stderr, "main: pthread_create() failed: %s\n", strerror(err));
         pthread_attr_destroy(&attr);
+        free(data->message);
         free(data);
         return ERROR;
     }
-    pthread_attr_destroy(&attr);
-    printf("main: sleeping for %d second...\n", SLEEP_TIME);
-    sleep(SLEEP_TIME);
-    return SUCCESS;
+    err = pthread_attr_destroy(&attr);
+    if (err != SUCCESS)
+    {
+        printf("main: pthread_attr_destroy() failed: %s\n", strerror(err));
+    }
+    pthread_exit(NULL);
 }
