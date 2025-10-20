@@ -61,6 +61,7 @@ int main(void)
 {
     pthread_t tid;
     int err;
+    void *thread_result;
 
     printf("main [%d %d %d]: Hello from main!\n", getpid(), getppid(), gettid());
 
@@ -80,12 +81,15 @@ int main(void)
         return ERROR;
     }
 
-    err = pthread_join(tid, NULL);
+    err = pthread_join(tid, &thread_result);
     if (err != SUCCESS)
     {
         printf("main: pthread_join() failed: %s\n", strerror(err));
         return ERROR;
     }
-    printf("main: thread cancelled and joined — exiting\n");
+    if (thread_result == PTHREAD_CANCELED)
+    {
+        printf("main: thread was canceled\n");
+    }
     return SUCCESS;
 }

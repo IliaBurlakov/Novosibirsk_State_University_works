@@ -25,11 +25,10 @@ int main()
 {
     pthread_t tid;
     int err;
+    void *thread_result;
     printf("main [%d %d %d]: Hello from main!\n", getpid(), getppid(), gettid());
-
     err = pthread_create(&tid, NULL, mythread, NULL);
-    if (err != SUCCESS)
-    {
+    if (err != SUCCESS) {
         printf("main: pthread_create() failed: %s\n", strerror(err));
         return ERROR;
     }
@@ -38,12 +37,18 @@ int main()
     sleep(SLEEP_TIME);
 
     err = pthread_cancel(tid);
-    if (err != SUCCESS)
-    {
+    if (err != SUCCESS) {
         printf("main: pthread_cancel() failed: %s\n", strerror(err));
         return ERROR;
     }
-    printf("main: thread was cancelled. Sleeping for %d seconds...\n", SLEEP_TIME);
-    sleep(SLEEP_TIME);
+    err = pthread_join(tid, &thread_result);
+    if (err != SUCCESS) {
+        printf("main: pthread_join() failed: %s\n", strerror(err));
+        return ERROR;
+    }
+
+    if (thread_result == PTHREAD_CANCELED) {
+        printf("main: thread was canceled\n");
+    }
     return SUCCESS;
 }

@@ -11,13 +11,12 @@
 #define ERROR 1
 #define SLEEP_TIME 2
 
-long counter = 0;
-
 void *mythread()
 {
-    while (true)
-    {
+    long counter = 0;
+    while (true) {
         counter++;
+        pthread_testcancel();
     }
     return NULL;
 }
@@ -26,7 +25,8 @@ int main()
 {
     pthread_t tid;
     int err;
-
+    void *thread_result;
+    
     printf("main [%d %d %d]: Hello from main!\n", getpid(), getppid(), gettid());
 
     err = pthread_create(&tid, NULL, mythread, NULL);
@@ -38,15 +38,22 @@ int main()
 
     printf("main: thread was created. Sleeping for %d seconds...\n", SLEEP_TIME);
     sleep(SLEEP_TIME);
-    printf("Before cancel: counter = %ld\n", counter);
     err = pthread_cancel(tid);
     if (err != SUCCESS)
     {
         printf("main: pthread_cancel() failed: %s\n", strerror(err));
         return ERROR;
     }
-    printf("main: Thread was cancelled. Sleeping for %d seconds...\n", SLEEP_TIME);
-    sleep(SLEEP_TIME);
-    printf("After cancel: counter = %ld\n", counter);
+    err = pthread_join(tid, &thread_result);
+    if (err != SUCCESS)
+    {
+        printf("main: pthread_join() failed: %s\n", strerror(err));
+        return ERROR;
+    }
+
+    if (thread_result == PTHREAD_CANCELED)
+    {
+        printf("main: thread was canceled\n");
+    }
     return SUCCESS;
 }
