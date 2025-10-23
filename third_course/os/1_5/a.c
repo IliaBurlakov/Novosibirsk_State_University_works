@@ -33,9 +33,8 @@ void *thread_block_all()
 
 void my_sigint_handler(int signum)
 {
-    if (signum != SIGINT) {
+    if (signum != SIGINT)
         return;
-    }
     const char msg[] = "sigint handler: received SIGINT\n";
     write(STDOUT_FILENO, msg, sizeof(msg) - SIZEOF_NULL_TERMINATOR);
 }
@@ -44,6 +43,15 @@ void *thread_with_handler()
 {
     int err;
     sigset_t unblock_sigint;
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = my_sigint_handler;
+    err = sigaction(SIGINT, &sa, NULL);
+    if (err != SUCCESS) {
+        printf("thread_with_handler: sigaction failed: %s\n", strerror(errno));
+        return (void *)ERROR;
+    }
+
     sigemptyset(&unblock_sigint);
     err = sigaddset(&unblock_sigint, SIGINT);
     if (err != SUCCESS) {
@@ -53,15 +61,6 @@ void *thread_with_handler()
     err = pthread_sigmask(SIG_UNBLOCK, &unblock_sigint, NULL);
     if (err != SUCCESS) {
         printf("thread_with_handler: pthread_sigmask failed: %s\n", strerror(err));
-        return (void *)ERROR;
-    }
-
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = my_sigint_handler;
-    err = sigaction(SIGINT, &sa, NULL);
-    if (err != SUCCESS) {
-        printf("thread_with_handler: sigaction failed: %s\n", strerror(errno));
         return (void *)ERROR;
     }
 
@@ -83,7 +82,7 @@ void *thread_sigwait()
     printf("thread_sigwait [pid %d tid %d]: waiting for SIGQUIT\n", getpid(), gettid());
     err = sigwait(&waitset, &sig);
     if (err != SUCCESS) {
-        printf("thread_sigwait: sigwait failed: %s\n", strerror(errno));
+        printf("thread_sigwait: sigwait failed: %s\n", strerror(err));
         return (void *)ERROR;
     }
     printf("thread_sigwait [pid %d tid %d]: sigwait received signal %d\n", getpid(), gettid(), sig);
@@ -113,17 +112,17 @@ int main()
         return ERROR;
     }
     err = pthread_create(&t1, NULL, thread_block_all, NULL);
-    if (err != SUCCESS){
+    if (err != SUCCESS) {
         printf("main: pthread_create(t1) failed: %s\n", strerror(err));
         return ERROR;
     }
     err = pthread_create(&t2, NULL, thread_with_handler, NULL);
-    if (err != SUCCESS){
+    if (err != SUCCESS) {
         printf("main: pthread_create(t2) failed: %s\n", strerror(err));
         return ERROR;
     }
     err = pthread_create(&t3, NULL, thread_sigwait, NULL);
-    if (err != SUCCESS){
+    if (err != SUCCESS) {
         printf("main: pthread_create(t3) failed: %s\n", strerror(err));
         return ERROR;
     }

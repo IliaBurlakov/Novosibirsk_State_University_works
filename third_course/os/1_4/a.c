@@ -11,18 +11,16 @@
 #define ERROR 1
 #define SLEEP_TIME 3
 #define MESSAGE_INTERVAL 1
+
 void *mythread()
 {
-    while (true)
-    {
+    while (true) {
         printf("mythread [tid: %d]: running...\n", gettid());
-        sleep(MESSAGE_INTERVAL);
     }
     return NULL;
 }
 
-int main()
-{
+int main() {
     pthread_t tid;
     int err;
     void *thread_result;
