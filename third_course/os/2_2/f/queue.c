@@ -31,7 +31,6 @@ void *qmonitor(void *arg) {
 
 queue_t* queue_init(int max_count) {
     int err;
-
     queue_t *q = malloc(sizeof(queue_t));
     if (q == NULL) {
         printf("Cannot allocate memory for a queue\n");
@@ -109,23 +108,21 @@ void queue_destroy(queue_t *q) {
 int queue_add(queue_t *q, int val) {
     int err;
     q->add_attempts++;
+    qnode_t *new = malloc(sizeof(qnode_t));
+    if (new == NULL) {
+        printf("Cannot allocate memory for new node\n");
+        return QUEUE_OP_FAILURE;
+    }
     err = pthread_mutex_lock(&q->lock);
     if (err != SUCCESS) {
         printf("queue_add: pthread_mutex_lock failed: %s\n", strerror(err));
+        free(new);
         return QUEUE_OP_FAILURE;
     }
     while (q->count == q->max_count) {
         pthread_cond_wait(&q->cond, &q->lock);
     }
 
-    qnode_t *new = malloc(sizeof(qnode_t));
-    if (new == NULL) {
-        printf("Cannot allocate memory for new node\n");
-        err = pthread_mutex_unlock(&q->lock);
-        if (err != SUCCESS)
-            printf("queue_add: pthread_mutex_unlock failed: %s\n", strerror(err));
-        return QUEUE_OP_FAILURE;
-    }
     new->val = val;
     new->next = NULL;
 
@@ -140,12 +137,12 @@ int queue_add(queue_t *q, int val) {
     q->add_count++;
     
     pthread_cond_broadcast(&q->cond);
-    
     err = pthread_mutex_unlock(&q->lock);
     if (err != SUCCESS)
         printf("queue_add: pthread_mutex_unlock failed: %s\n", strerror(err));
     return QUEUE_OP_SUCCESS;
 }
+
 
 int queue_get(queue_t *q, int *val) {
     int err;
@@ -159,7 +156,6 @@ int queue_get(queue_t *q, int *val) {
     while (q->count == 0) {
         pthread_cond_wait(&q->cond, &q->lock);
     }
-
     qnode_t *tmp = q->first;
     *val = tmp->val;
     q->first = q->first->next;
@@ -170,7 +166,6 @@ int queue_get(queue_t *q, int *val) {
     q->get_count++;
     
     pthread_cond_broadcast(&q->cond);
-    
     err = pthread_mutex_unlock(&q->lock);
     if (err != SUCCESS)
         printf("queue_get: pthread_mutex_unlock failed: %s\n", strerror(err));
