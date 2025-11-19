@@ -124,9 +124,22 @@ void queue_destroy(queue_t *q) {
 int queue_add(queue_t *q, int val) {
 	int err;
 	q->add_attempts++;
+	qnode_t *new = malloc(sizeof(qnode_t));
+	if (new == NULL) {
+		printf("Cannot allocate memory for new node\n");
+        return QUEUE_OP_FAILURE;
+	}
+	err = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	if (err != SUCCESS) {
+		printf("queue_add: pthread_setcancelstate failed: %s\n", strerror(err));
+		return QUEUE_OP_FAILURE;
+	}
 	err = sem_wait(&q->available_slots);
 	if (err != SUCCESS) {
 		printf("queue_add: sem_wait(available_slots) failed: %s\n", strerror(errno));
+		err = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		if (err != SUCCESS)
+			printf("queue_add: pthread_setcancelstate failed: %s\n", strerror(err));
 		return QUEUE_OP_FAILURE;
 	}
 	err = sem_wait(&q->queue_access);
@@ -135,20 +148,12 @@ int queue_add(queue_t *q, int val) {
 		err = sem_post(&q->available_slots);
 		if (err != SUCCESS)
 			printf("queue_add: sem_post(available_slots) failed: %s\n", strerror(errno));
+		err = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		if (err != SUCCESS)
+			printf("queue_add: pthread_setcancelstate failed: %s\n", strerror(err));
 		return QUEUE_OP_FAILURE;
 	}
 
-	qnode_t *new = malloc(sizeof(qnode_t));
-	if (new == NULL) {
-		printf("Cannot allocate memory for new node\n");
-		err = sem_post(&q->queue_access);
-		if (err != SUCCESS)
-			printf("queue_add: sem_post(queue_access) failed: %s\n", strerror(errno));
-        err = sem_post(&q->available_slots);
-		if (err != SUCCESS)
-			printf("queue_add: sem_post(available_slots) failed: %s\n", strerror(errno));
-        return QUEUE_OP_FAILURE;
-	}
 	new->val = val;
 	new->next = NULL;
 	if (q->first == NULL)
@@ -160,22 +165,32 @@ int queue_add(queue_t *q, int val) {
 	q->count++;
 	q->add_count++;
 	err = sem_post(&q->queue_access);
-    if (err != SUCCESS) {
+    if (err != SUCCESS)
 		printf("queue_add: sem_post(queue_access) failed: %s\n", strerror(errno));
-	}
     err = sem_post(&q->available_items);
-    if (err != SUCCESS) {
+    if (err != SUCCESS){
         printf("queue_add: sem_post(available_items) failed: %s\n", strerror(errno));
 	}
+	err = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+	if (err != SUCCESS)
+		printf("queue_add: pthread_setcancelstate failed: %s\n", strerror(err));
 	return QUEUE_OP_SUCCESS;
 }
 
 int queue_get(queue_t *q, int *val) {
 	q->get_attempts++;
 	int err;
+	err = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	if (err != SUCCESS) {
+		printf("queue_get: pthread_setcancelstate failed: %s\n", strerror(err));
+		return QUEUE_OP_FAILURE;
+	}
 	err = sem_wait(&q->available_items);
     if (err != SUCCESS) {
         printf("queue_get: sem_wait(available_items) failed: %s\n", strerror(errno));
+		err = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		if (err != SUCCESS)
+			printf("queue_get: pthread_setcancelstate failed: %s\n", strerror(err));
 		return QUEUE_OP_FAILURE;
 	}
     err = sem_wait(&q->queue_access);
@@ -184,6 +199,9 @@ int queue_get(queue_t *q, int *val) {
 		err = sem_post(&q->available_items);
 		if (err != SUCCESS)
 			printf("queue_get: sem_post(available_items) failed: %s\n", strerror(errno));
+		err = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		if (err != SUCCESS)
+			printf("queue_get: pthread_setcancelstate failed: %s\n", strerror(err));
 		return QUEUE_OP_FAILURE;
 	}
 	qnode_t *tmp = q->first;
@@ -202,6 +220,10 @@ int queue_get(queue_t *q, int *val) {
     err = sem_post(&q->available_slots);
     if (err != SUCCESS) {
         printf("queue_get: sem_post(available_slots) failed: %s\n", strerror(errno));
+	}
+	err = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+	if (err != SUCCESS) {
+		printf("queue_get: pthread_setcancelstate failed: %s\n", strerror(err));
 	}
 	return QUEUE_OP_SUCCESS;
 }
