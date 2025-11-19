@@ -13,6 +13,7 @@
 #define ERROR -1
 #define QUEUE_OP_SUCCESS 1
 #define QUEUE_OP_FAILURE 0
+#define MONITOR_INTERVAL 1
 
 typedef struct _QueueNode {
 	int val;

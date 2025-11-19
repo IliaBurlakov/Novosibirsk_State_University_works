@@ -23,7 +23,7 @@ void *qmonitor(void *arg) {
         err = pthread_mutex_unlock(&q->lock);
         if (err != SUCCESS)
             printf("qmonitor: pthread_mutex_unlock failed: %s\n", strerror(err));
-        sleep(1);
+        sleep(MONITOR_INTERVAL);
     }
 
     return NULL;
@@ -119,10 +119,27 @@ int queue_add(queue_t *q, int val) {
         free(new);
         return QUEUE_OP_FAILURE;
     }
+    err = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+    if (err != SUCCESS) {
+        printf("queue_add: pthread_setcancelstate failed: %s\n", strerror(err));
+        free(new);
+        err = pthread_mutex_unlock(&q->lock);
+        if (err != SUCCESS)
+            printf("queue_add: pthread_mutex_unlock failed: %s\n", strerror(err));
+        return QUEUE_OP_FAILURE;
+    }
     while (q->count == q->max_count) {
         pthread_cond_wait(&q->cond, &q->lock);
     }
-
+    err = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    if (err != SUCCESS) {
+        printf("queue_add: pthread_setcancelstate failed: %s\n", strerror(err));
+        free(new);
+        err = pthread_mutex_unlock(&q->lock);
+        if (err != SUCCESS)
+            printf("queue_add: pthread_mutex_unlock failed: %s\n", strerror(err));
+        return QUEUE_OP_FAILURE;
+    }
     new->val = val;
     new->next = NULL;
 
@@ -152,9 +169,24 @@ int queue_get(queue_t *q, int *val) {
         printf("queue_get: pthread_mutex_lock failed: %s\n", strerror(err));
         return QUEUE_OP_FAILURE;
     }
-    
+    err = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+    if (err != SUCCESS) {
+        printf("queue_get: pthread_setcancelstate failed: %s\n", strerror(err));
+        err = pthread_mutex_unlock(&q->lock);
+        if (err != SUCCESS)
+            printf("queue_get: pthread_mutex_unlock failed: %s\n", strerror(err));
+        return QUEUE_OP_FAILURE;
+    }
     while (q->count == 0) {
         pthread_cond_wait(&q->cond, &q->lock);
+    }
+    err = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    if (err != SUCCESS) {
+        printf("queue_get: pthread_setcancelstate failed: %s\n", strerror(err));
+        err = pthread_mutex_unlock(&q->lock);
+        if (err != SUCCESS)
+            printf("queue_get: pthread_mutex_unlock failed: %s\n", strerror(err));
+        return QUEUE_OP_FAILURE;
     }
     qnode_t *tmp = q->first;
     *val = tmp->val;

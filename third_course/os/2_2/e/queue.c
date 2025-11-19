@@ -19,7 +19,7 @@ void *qmonitor(void *arg) {
         err = pthread_mutex_unlock(&q->lock);
 		if (err != SUCCESS)
 			printf("qmonitor: pthread_mutex_unlock failed: %s\n", strerror(err));
-		sleep(1);
+		sleep(MONITOR_INTERVAL);
 	}
 
 	return NULL;
@@ -128,23 +128,21 @@ int queue_add(queue_t *q, int val) {
 
 int queue_get(queue_t *q, int *val) {
 	int err;
+	q->get_attempts++;
 	err = pthread_mutex_lock(&q->lock);
 	if (err != SUCCESS) {
 		printf("queue_get: pthread_mutex_lock failed: %s\n", strerror(err));
 		return QUEUE_OP_FAILURE;
 	}
-	q->get_attempts++;
-
-	assert(q->count >= 0);
-
+	
 	if (q->count == 0){
 		err = pthread_mutex_unlock(&q->lock);
 		if (err != SUCCESS)
 			printf("queue_get: pthread_mutex_unlock failed: %s\n", strerror(err));
 		return QUEUE_OP_FAILURE;
 	}
-	qnode_t *tmp = q->first;
 
+	qnode_t *tmp = q->first;
 	*val = tmp->val;
 	q->first = q->first->next;
 	if (q->first == NULL)

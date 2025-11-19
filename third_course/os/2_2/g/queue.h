@@ -17,6 +17,7 @@
 #define PROCESS_PRIVATE 0
 #define NO_ITEMS 0 
 #define ACCESS_ALLOWED 1
+#define MONITOR_INTERVAL 1
 
 typedef struct _QueueNode
 {

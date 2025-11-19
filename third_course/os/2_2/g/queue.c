@@ -22,7 +22,7 @@ void *qmonitor(void *arg) {
 			printf("qmonitor: sem_post(queue_access) failed: %s\n", strerror(errno));
 			break;
 		}
-		sleep(1);
+		sleep(MONITOR_INTERVAL);
 	}
 
 	return NULL;

@@ -13,6 +13,7 @@
 #define RED "\033[41m"
 #define NOCOLOR "\033[0m"
 #define QUEUE_SIZE 1000000
+#define SLEEP_TIME 10
 
 #define CANCEL_AND_JOIN(thread, name) do { \
     int cancel_err = pthread_cancel(thread); \
@@ -106,11 +107,11 @@ int main() {
 		queue_destroy(q);
 		return ERROR;
 	}
-	sleep(10);
+	sleep(SLEEP_TIME);
 	CANCEL_AND_JOIN(reader_tid, "reader");
 	CANCEL_AND_JOIN(writer_tid, "writer");
-
+	printf("main: reader and writer threads were joined\n");
 	queue_destroy(q);
-	printf("main: all threads were joined, exiting...\n");
+	printf("main: queue was destroyed, exiting...\n");
 	return SUCCESS;
 }
