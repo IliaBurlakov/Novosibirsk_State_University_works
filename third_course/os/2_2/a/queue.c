@@ -1,7 +1,5 @@
 #define _GNU_SOURCE
 #include <pthread.h>
-#include <assert.h>
-
 #include "queue.h"
 
 void *qmonitor(void *arg) {

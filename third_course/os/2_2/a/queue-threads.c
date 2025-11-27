@@ -75,11 +75,11 @@ void *writer(void *arg) {
 		pthread_testcancel();
 		int ok = queue_add(q, i);
 		if (ok != QUEUE_OP_SUCCESS) {
-			//usleep(1);
+			usleep(1);
 			continue;
 		}
 		i++;
-		//usleep(1);
+		usleep(1);
 	}
 
 	return NULL;
